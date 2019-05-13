@@ -13,6 +13,7 @@ func welcomePage(ginContext *gin.Context) {
 }
 
 func redirectURLHandler(ginContext *gin.Context, shortURLMaps map[string]string) {
+
 	shortURL := ginContext.Param("shortURL")
 
 	shortURLMappedDest, found := shortURLMaps[shortURL]
