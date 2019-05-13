@@ -47,7 +47,7 @@ func main() {
 		redirectURLHandler(ginContext, shortURLMappings)
 	})
 
-	err := router.Run(port)
+	err := router.Run(":" + port)
 	if err != nil {
 		fmt.Printf("Cannot start server")
 	}
