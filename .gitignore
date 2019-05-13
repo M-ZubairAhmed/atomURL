@@ -13,3 +13,6 @@
 
 # Workspace specific
 .idea
+
+# ENV files
+.env
