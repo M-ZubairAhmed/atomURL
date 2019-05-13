@@ -26,8 +26,8 @@ func redirectURLHandler(ginContext *gin.Context, shortURLMaps map[string]string)
 
 func main() {
 	port := os.Getenv("PORT")
-	if port == "" {
-		port = ":8000"
+	if os.Getenv("PORT") == "" {
+		port = "8000"
 	}
 
 	// defining new router
