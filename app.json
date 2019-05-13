@@ -1,0 +1,9 @@
+{
+  "name": "Atom URL",
+  "description": "URL shortening service",
+  "keywords": [
+    "go"
+  ],
+  "website": "https://atomurl.ga",
+  "repository": "https://github.com/M-ZubairAhmed/atomURL"
+}
