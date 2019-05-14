@@ -24,7 +24,7 @@ type AtomURLEntry struct {
 }
 
 func corsMiddleware() gin.HandlerFunc {
-	return func(ginContext *gin.Context){
+	return func(ginContext *gin.Context) {
 		ginContext.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		ginContext.Writer.Header().Set("Access-Control-Max-Age", "86400")
 		ginContext.Writer.Header().Set("Access-Control-Allow-Methods", "GET , POST")
@@ -73,34 +73,47 @@ func webAppHandler(ginContext *gin.Context) {
 	ginContext.File("./web/build/index.html")
 }
 
-func redirectURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection, connectContext context.Context) {
+func redirectURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 	var atomURLEntry AtomURLEntry
 	shortURLEntered := ginContext.Param("shortURL")
+
+	connectContext, cancelContext := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelContext()
 
 	filterOptions := bson.M{
 		"shortURL": shortURLEntered,
 	}
 
-	err := dbCollection.FindOne(connectContext, filterOptions).Decode(&atomURLEntry)
-	if err != nil {
-		ginContext.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+	errInFinding := dbCollection.FindOne(connectContext, filterOptions).Decode(&atomURLEntry)
+	if errInFinding != nil {
+		ginContext.JSON(http.StatusNotFound, gin.H{"error": "Not found",
+			"error_details": errInFinding.Error()})
+		connectContext.Done()
+		return
 	}
 
 	ginContext.Redirect(http.StatusFound, atomURLEntry.DestinationURL)
+	connectContext.Done()
 }
 
-func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection, connectContext context.Context) {
+func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 	var atomURLEntry AtomURLEntry
 	var atomURLExistingEntry AtomURLEntry
 
+	connectContext, cancelContext := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelContext()
+
 	errInParsingInput := ginContext.ShouldBindJSON(&atomURLEntry)
 	if errInParsingInput != nil {
-		ginContext.JSON(http.StatusNotAcceptable, gin.H{"error": "Wrong JSON structure"})
+		ginContext.JSON(http.StatusNotAcceptable, gin.H{"error": "Wrong JSON structure",
+			"error_details": errInParsingInput.Error()})
+		connectContext.Done()
 		return
 	}
 
 	if isInputJsonValid(atomURLEntry.ShortURL, atomURLEntry.DestinationURL) == false {
 		ginContext.JSON(http.StatusNotAcceptable, gin.H{"error": "Empty fields"})
+		connectContext.Done()
 		return
 	}
 
@@ -112,30 +125,32 @@ func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection, conn
 	atomURLEntryToAdd := bson.M{
 		"shortURL":       atomURLEntry.ShortURL,
 		"destinationURL": atomURLEntry.DestinationURL,
-		"created_at":      atomURLEntry.CreatedAt,
+		"created_at":     atomURLEntry.CreatedAt,
 	}
 
 	// Checking if short url is taken
 	atomURLEntryToSearch := bson.M{
 		"shortURL": atomURLEntry.ShortURL,
 	}
-	err := dbCollection.FindOne(connectContext, atomURLEntryToSearch).Decode(&atomURLExistingEntry)
-	if err == nil {
-		ginContext.JSON(http.StatusConflict, gin.H{"error": "short url already taken"})
+	errInFinding := dbCollection.FindOne(connectContext, atomURLEntryToSearch).Decode(&atomURLExistingEntry)
+	if errInFinding == nil {
+		ginContext.JSON(http.StatusConflict, gin.H{"error": "short url already taken",
+			"error_details": "Duplicate short url already in database"})
+		connectContext.Done()
 		return
 	}
-
-
 
 	// Adding to database
 	addedAtomURLEntry, errInAdding := dbCollection.InsertOne(connectContext, atomURLEntryToAdd)
 	if errInAdding != nil {
 		ginContext.JSON(http.StatusServiceUnavailable, gin.H{
-			"error": "Error while saving to database","error_details":errInAdding})
+			"error": "Error while saving to database", "error_details": errInAdding.Error()})
+		connectContext.Done()
 		return
 	}
 
 	ginContext.JSON(http.StatusCreated, gin.H{"data": addedAtomURLEntry})
+	connectContext.Done()
 }
 
 func main() {
@@ -169,9 +184,6 @@ func main() {
 	database := connectToDatabase(databaseURL)
 	shortURLsCollection := database.Database("atom-url-db").Collection("shorturls")
 
-	connectContext, errorInContext := context.WithTimeout(context.Background(), 30*time.Second)
-	defer errorInContext()
-
 	// defining new router
 	router := gin.New()
 
@@ -179,19 +191,19 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware())
 
-	router.Static("/asset-manifest.json","./web/build/asset-manifest.json")
-	router.Static("/static","./web/build/static")
+	router.Static("/asset-manifest.json", "./web/build/asset-manifest.json")
+	router.Static("/static", "./web/build/static")
 
 	router.GET("/", func(ginContext *gin.Context) {
 		webAppHandler(ginContext)
 	})
 
 	router.GET("/go/:shortURL", func(ginContext *gin.Context) {
-		redirectURLHandler(ginContext, shortURLsCollection, connectContext)
+		redirectURLHandler(ginContext, shortURLsCollection)
 	})
 
 	router.POST("/api/add", func(ginContext *gin.Context) {
-		addURLHandler(ginContext, shortURLsCollection, connectContext)
+		addURLHandler(ginContext, shortURLsCollection)
 	})
 
 	router.NoRoute(func(c *gin.Context) {
