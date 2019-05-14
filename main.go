@@ -23,6 +23,18 @@ type AtomURLEntry struct {
 	CreatedAt      int64              `json:"created_at" bson:"created_at"`
 }
 
+func corsMiddleware() gin.HandlerFunc {
+	return func(ginContext *gin.Context){
+		ginContext.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		ginContext.Writer.Header().Set("Access-Control-Max-Age", "86400")
+		ginContext.Writer.Header().Set("Access-Control-Allow-Methods", "GET , POST")
+		ginContext.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Max")
+		ginContext.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		ginContext.Next()
+	}
+}
+
 func connectToDatabase(mangoDatabaseURL string) *mongo.Client {
 	databaseURL := fmt.Sprint(mangoDatabaseURL)
 	connectOptions := options.Client()
@@ -149,6 +161,7 @@ func main() {
 
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+	router.Use(corsMiddleware())
 
 	router.GET("/", func(ginContext *gin.Context) {
 		welcomePage(ginContext)

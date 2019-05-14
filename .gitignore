@@ -16,3 +16,6 @@
 
 # ENV files
 .env
+
+# Node modules
+app/node_modules/
