@@ -1,2 +1,0 @@
-(window.webpackJsonp=window.webpackJsonp||[]).push([[0],{10:function(e,n,a){"use strict";a.r(n);var t=a(0),r=a.n(t),c=a(2),o=a.n(c);a(9);var p=function(){return r.a.createElement("div",{className:"App"},r.a.createElement("header",{className:"App-header"},"Learn React"))};o.a.render(r.a.createElement(p,null),document.getElementById("root"))},3:function(e,n,a){e.exports=a(10)},9:function(e,n,a){}},[[3,1,2]]]);
-//# sourceMappingURL=main.caa09ae6.chunk.js.map
