@@ -69,9 +69,8 @@ func isInputJsonValid(shortURL string, longURL string) bool {
 	return true
 }
 
-func welcomePage(ginContext *gin.Context) {
-
-	ginContext.JSON(200, gin.H{"name": "Hello"})
+func webAppHandler(ginContext *gin.Context) {
+	ginContext.File("./web/build/index.html")
 }
 
 func redirectURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection, connectContext context.Context) {
@@ -92,14 +91,17 @@ func redirectURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection,
 
 func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection, connectContext context.Context) {
 	var atomURLEntry AtomURLEntry
+	var atomURLExistingEntry AtomURLEntry
 
 	errInParsingInput := ginContext.ShouldBindJSON(&atomURLEntry)
 	if errInParsingInput != nil {
-		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Wrong JSON structure"})
+		ginContext.JSON(http.StatusNotAcceptable, gin.H{"error": "Wrong JSON structure"})
+		return
 	}
 
 	if isInputJsonValid(atomURLEntry.ShortURL, atomURLEntry.DestinationURL) == false {
-		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Empty fields"})
+		ginContext.JSON(http.StatusNotAcceptable, gin.H{"error": "Empty fields"})
+		return
 	}
 
 	atomURLEntry.ShortURL = strings.TrimSpace(atomURLEntry.ShortURL)
@@ -110,16 +112,30 @@ func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection, conn
 	atomURLEntryToAdd := bson.M{
 		"shortURL":       atomURLEntry.ShortURL,
 		"destinationURL": atomURLEntry.DestinationURL,
-		"create_at":      atomURLEntry.CreatedAt,
+		"created_at":      atomURLEntry.CreatedAt,
 	}
 
+	// Checking if short url is taken
+	atomURLEntryToSearch := bson.M{
+		"shortURL": atomURLEntry.ShortURL,
+	}
+	err := dbCollection.FindOne(connectContext, atomURLEntryToSearch).Decode(&atomURLExistingEntry)
+	if err == nil {
+		ginContext.JSON(http.StatusConflict, gin.H{"error": "short url already taken"})
+		return
+	}
+
+
+
+	// Adding to database
 	addedAtomURLEntry, errInAdding := dbCollection.InsertOne(connectContext, atomURLEntryToAdd)
 	if errInAdding != nil {
-		ginContext.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Error while saving to database"})
+		ginContext.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Error while saving to database","error_details":errInAdding})
+		return
 	}
 
-	ginContext.JSON(http.StatusCreated, gin.H{"status": http.StatusCreated, "data": addedAtomURLEntry})
+	ginContext.JSON(http.StatusCreated, gin.H{"data": addedAtomURLEntry})
 }
 
 func main() {
@@ -163,16 +179,23 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware())
 
+	router.Static("/asset-manifest.json","./web/build/asset-manifest.json")
+	router.Static("/static","./web/build/static")
+
 	router.GET("/", func(ginContext *gin.Context) {
-		welcomePage(ginContext)
+		webAppHandler(ginContext)
 	})
 
-	router.GET("/:shortURL", func(ginContext *gin.Context) {
+	router.GET("/go/:shortURL", func(ginContext *gin.Context) {
 		redirectURLHandler(ginContext, shortURLsCollection, connectContext)
 	})
 
-	router.POST("/", func(ginContext *gin.Context) {
+	router.POST("/api/add", func(ginContext *gin.Context) {
 		addURLHandler(ginContext, shortURLsCollection, connectContext)
+	})
+
+	router.NoRoute(func(c *gin.Context) {
+		c.JSON(404, gin.H{"code": "PAGE_NOT_FOUND", "message": "Page not found"})
 	})
 
 	err := router.Run(":" + port)
