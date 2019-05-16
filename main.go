@@ -16,6 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// AtomURLEntry structure of the a single item in database
 type AtomURLEntry struct {
 	ID             primitive.ObjectID `json:"id" bson:"_id"`
 	ShortURL       string             `json:"shortURL" bson:"shortURL"`
@@ -47,7 +48,7 @@ func connectToDatabase(mangoDatabaseURL string) *mongo.Client {
 	databaseClient, errInConnection := mongo.Connect(connectContext, connectOptions)
 
 	if errInConnection != nil {
-		panic("Failed to connect to DB")
+		log.Fatal("Failed to connect to DB", errInConnection)
 	}
 
 	errInPing := databaseClient.Ping(connectContext, nil)
@@ -59,7 +60,7 @@ func connectToDatabase(mangoDatabaseURL string) *mongo.Client {
 	return databaseClient
 }
 
-func isInputJsonValid(shortURL string, longURL string) bool {
+func isInputJSONValid(shortURL string, longURL string) bool {
 	lengthOfShortURL := len(strings.TrimSpace(shortURL))
 	lengthOfLongURL := len(strings.TrimSpace(longURL))
 
@@ -111,7 +112,7 @@ func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 		return
 	}
 
-	if isInputJsonValid(atomURLEntry.ShortURL, atomURLEntry.DestinationURL) == false {
+	if isInputJSONValid(atomURLEntry.ShortURL, atomURLEntry.DestinationURL) == false {
 		ginContext.JSON(http.StatusNotAcceptable, gin.H{"error": "Empty fields"})
 		connectContext.Done()
 		return
@@ -159,6 +160,11 @@ func main() {
 		port = "8000"
 	}
 
+	databaseHost := os.Getenv("DB_HOST")
+	if os.Getenv("DB_HOST") == "" {
+		log.Fatal("No Database host provided eg. <mongodb>://")
+	}
+
 	databaseUserName := os.Getenv("DB_USER")
 	if os.Getenv("DB_USER") == "" {
 		log.Fatal("No Database user name provided")
@@ -179,7 +185,7 @@ func main() {
 		log.Fatal("NO Database name provided")
 	}
 
-	databaseURL := fmt.Sprint("mongodb://" + databaseUserName + ":" + databaseUserPassword + "@" + databaseAddress + "/" + databaseName)
+	databaseURL := fmt.Sprint(databaseHost + "://" + databaseUserName + ":" + databaseUserPassword + "@" + databaseAddress + "/" + databaseName)
 
 	database := connectToDatabase(databaseURL)
 	shortURLsCollection := database.Database("atom-url-db").Collection("shorturls")
