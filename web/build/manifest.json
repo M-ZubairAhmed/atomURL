@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "AtomURL",
+  "name": "A fast url shortener without trackers",
   "icons": [
     {
       "src": "favicon.ico",

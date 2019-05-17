@@ -1,5 +1,6 @@
 import React from 'react'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
+import logo from './favicon.png'
 
 const checkURLValidity = (inputURL) => {
   var validURLExpression = /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi
@@ -304,7 +305,9 @@ export default class App extends React.Component {
 
     return (
       <main>
-        <header className="App-header">AtomURL</header>
+        <header className="App-header">
+          <img src={logo} alt="AtomURL"/>
+        </header>
         <div className="container mt-5">
           <div className="row justify-content-center">
             <div className="col col-md-6">
