@@ -178,7 +178,7 @@ export default class App extends React.Component {
     })
 
     try {
-      const request = await fetch('http://localhost:8000/api/add', {
+      const request = await fetch('/api/add', {
         headers: {
           'Content-Type': 'application/json',
         },
