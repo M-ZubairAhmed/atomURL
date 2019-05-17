@@ -10,15 +10,7 @@ body {
   background-image: linear-gradient(62deg, #ededed 0%, #ffffff 100%);
 }
 
-.main-section {
-  display: flex;
-  justify-content: center;
-  align-content: center;
-  padding-top: 6rem;
-}
-
 .box-card {
-  min-width:40rem;
   min-height: 25rem;
   display:flex;
   justify-content:center;
