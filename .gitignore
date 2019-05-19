@@ -15,7 +15,8 @@
 .idea
 
 # ENV files
-.env*
+.env
+.env.prod
 
 # Node modules
 web/node_modules/
