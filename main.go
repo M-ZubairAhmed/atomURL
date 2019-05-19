@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -22,18 +23,6 @@ type AtomURLEntry struct {
 	ShortURL       string             `json:"shortURL" bson:"shortURL"`
 	DestinationURL string             `json:"destinationURL" bson:"destinationURL"`
 	CreatedAt      int64              `json:"created_at" bson:"created_at"`
-}
-
-func corsMiddleware() gin.HandlerFunc {
-	return func(ginContext *gin.Context) {
-		ginContext.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		ginContext.Writer.Header().Set("Access-Control-Max-Age", "86400")
-		ginContext.Writer.Header().Set("Access-Control-Allow-Methods", "GET , POST")
-		ginContext.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Max")
-		ginContext.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-
-		ginContext.Next()
-	}
 }
 
 func connectToDatabase(mangoDatabaseURL string) *mongo.Client {
@@ -193,7 +182,10 @@ func main() {
 	// defining new router
 	router := gin.Default()
 
-	router.Use(corsMiddleware())
+	defaultCors := cors.DefaultConfig()
+
+	defaultCors.AllowOrigins = []string{"https://atomurl.ga"}
+	router.Use(cors.New(defaultCors))
 
 	router.Static("/asset-manifest.json", "./web/build/asset-manifest.json")
 	router.Static("/static", "./web/build/static")
@@ -216,6 +208,6 @@ func main() {
 
 	err := router.Run(":" + port)
 	if err != nil {
-		fmt.Printf("Cannot start server")
+		log.Fatal("Cannot start server")
 	}
 }
