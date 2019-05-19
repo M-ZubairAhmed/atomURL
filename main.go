@@ -191,10 +191,8 @@ func main() {
 	shortURLsCollection := database.Database("atom-url-db").Collection("shorturls")
 
 	// defining new router
-	router := gin.New()
+	router := gin.Default()
 
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
 	router.Use(corsMiddleware())
 
 	router.Static("/asset-manifest.json", "./web/build/asset-manifest.json")
