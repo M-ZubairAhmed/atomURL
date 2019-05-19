@@ -143,38 +143,35 @@ func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 	connectContext.Done()
 }
 
+func getEnvValues(envKeyStrings [5]string) map[string]string {
+
+	envValues := make(map[string]string)
+
+	if len(envKeyStrings) == 0 {
+		log.Fatal("No env variables provided, please check readme")
+	}
+
+	for _, keyString := range envKeyStrings {
+		if os.Getenv(keyString) == "" {
+			log.Fatal("No env value provided for " + keyString + " , check Readme")
+
+		}
+		envValues[keyString] = os.Getenv(keyString)
+	}
+
+	return envValues
+}
+
 func main() {
 	port := os.Getenv("PORT")
 	if os.Getenv("PORT") == "" {
 		port = "8000"
 	}
 
-	databaseHost := os.Getenv("DB_HOST")
-	if os.Getenv("DB_HOST") == "" {
-		log.Fatal("No Database host provided eg. <mongodb>://")
-	}
+	envKeys := [5]string{"DB_HOST", "DB_USER", "DB_PASSWORD", "DB_URL", "DB_NAME"}
+	envValues := getEnvValues(envKeys)
 
-	databaseUserName := os.Getenv("DB_USER")
-	if os.Getenv("DB_USER") == "" {
-		log.Fatal("No Database user name provided")
-	}
-
-	databaseUserPassword := os.Getenv("DB_PASSWORD")
-	if os.Getenv("DB_PASSWORD") == "" {
-		log.Fatal("No Database user's password provided")
-	}
-
-	databaseAddress := os.Getenv("DB_URL")
-	if os.Getenv("DB_URL") == "" {
-		log.Fatal("No Database URL provided")
-	}
-
-	databaseName := os.Getenv("DB_NAME")
-	if os.Getenv("DB_NAME") == "" {
-		log.Fatal("NO Database name provided")
-	}
-
-	databaseURL := fmt.Sprint(databaseHost,"://",databaseUserName,":",databaseUserPassword,"@",databaseAddress,"/",databaseName)
+	databaseURL := fmt.Sprint(envValues["DB_HOST"], "://", envValues["DB_USER"], ":", envValues["DB_PASSWORD"], "@", envValues["DB_URL"], "/", envValues["DB_NAME"])
 
 	database := connectToDatabase(databaseURL)
 	shortURLsCollection := database.Database("atom-url-db").Collection("shorturls")
