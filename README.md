@@ -59,7 +59,7 @@ Host://UserName:Password@Address/databaseName
 mv .env.sample .env
 ```
 
-- Replace the values in go run command
+- Replace the values in go run command and start the server
 
 ```bash
 DB_HOST=insert_value_here DB_USER=insert_value_here DB_PASSWORD=insert_value_here DB_URL=insert_value_here DB_NAME=insert_value_here go run main.go
