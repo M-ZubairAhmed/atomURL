@@ -174,7 +174,7 @@ func main() {
 		log.Fatal("NO Database name provided")
 	}
 
-	databaseURL := fmt.Sprint(databaseHost + "://" + databaseUserName + ":" + databaseUserPassword + "@" + databaseAddress + "/" + databaseName)
+	databaseURL := fmt.Sprint(databaseHost,"://",databaseUserName,":",databaseUserPassword,"@",databaseAddress,"/",databaseName)
 
 	database := connectToDatabase(databaseURL)
 	shortURLsCollection := database.Database("atom-url-db").Collection("shorturls")
