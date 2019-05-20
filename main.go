@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -137,6 +138,7 @@ func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 	connectContext, cancelContext := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancelContext()
 
+	// Valid JSON check
 	errInParsingInput := ginContext.ShouldBindJSON(&atomURLEntry)
 	if errInParsingInput != nil {
 		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Wrong JSON structure",
@@ -145,6 +147,7 @@ func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 		return
 	}
 
+	// Empty check
 	missingJSONFields := areJSONFieldsMissing(atomURLEntry.ShortURL, atomURLEntry.DestinationURL)
 	if missingJSONFields != nil {
 		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Empty fields", "error_details": missingJSONFields.Error()})
@@ -152,10 +155,9 @@ func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 		return
 	}
 
-	// By now we know that both fields are present hence below :
-	shortURL := strings.TrimSpace(atomURLEntry.ShortURL)
-	destinationURL := strings.TrimSpace(atomURLEntry.DestinationURL)
+	destinationURL := strings.ToLower(strings.TrimSpace(atomURLEntry.DestinationURL))
 
+	// Only destination URL checks
 	decodedDestinationURL, errInDecoding := url.Parse(destinationURL)
 	if errInDecoding != nil {
 		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Error while decoding URL",
@@ -172,13 +174,41 @@ func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 		return
 	}
 
+	shortURL := strings.ToLower(strings.TrimSpace(atomURLEntry.ShortURL))
+
+	// Only short url checks
+	validShortURLRegex := "^([a-z-]+$)"
+	shortURLRegTester, errorInURLRegex := regexp.Compile(validShortURLRegex)
+	if errorInURLRegex != nil {
+		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Short URL not in correct format",
+			"error_details": errorInURLRegex.Error()})
+		connectContext.Done()
+		return
+	}
+
+	if shortURLRegTester.MatchString(shortURL) == false {
+		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Short URL not in correct format",
+			"error_details": "Short url did not match regex"})
+		connectContext.Done()
+		return
+	}
+
+	shortURLFirstChar := string(shortURL[0])
+	shortURLLastChar := string(shortURL[len(shortURL)-1])
+	if shortURLFirstChar == "-" || shortURLLastChar == "-" {
+		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Short URL not in correct format",
+			"error_details": "Short url cannot start or end wit hyphen"})
+		connectContext.Done()
+		return
+	}
+
 	createdAt := time.Now().Unix()
 	atomURLEntry.CreatedAt = createdAt
 
 	atomURLEntryToAdd := bson.M{
 		"shortURL":       shortURL,
 		"destinationURL": destinationURL,
-		"created_at":     atomURLEntry.CreatedAt,
+		"created_at":     createdAt,
 	}
 
 	// Checking if short url is taken
