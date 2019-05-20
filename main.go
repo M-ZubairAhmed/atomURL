@@ -258,7 +258,7 @@ func main() {
 
 	defaultCors := cors.DefaultConfig()
 
-	defaultCors.AllowOrigins = []string{"https://atomurl.ga", "http://localhost:3000"}
+	defaultCors.AllowOrigins = []string{"https://atomurl.ga", "https://atomurlapp.herokuapp.com", "http://localhost:3000"}
 	router.Use(cors.New(defaultCors))
 
 	router.Static("/asset-manifest.json", "./web/build/asset-manifest.json")
