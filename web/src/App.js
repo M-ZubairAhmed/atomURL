@@ -1,7 +1,9 @@
 import React from 'react'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { createBrowserHistory } from 'history'
-import logo from './favicon.png'
+import logo from './assets/favicon.png'
+import { ReactComponent as DownArrowSVG } from './assets/arrow-down-solid.svg'
+import { ReactComponent as CopySVG } from './assets/copy-solid.svg'
 
 const PAGE_INIT = 'init'
 const PAGE_NO_FOUND = '404'
@@ -52,8 +54,8 @@ const DestinationURLHolder = ({
 }
 
 const DownArrow = () => (
-  <div className="text-center">
-    <i className="fas fa-arrow-down h3 my-2" />
+  <div className="down-arrow">
+    <DownArrowSVG />
   </div>
 )
 
@@ -86,7 +88,9 @@ const ShortURLHolder = ({
               type="button"
               id="button-addon2"
               title="Copy to clipboard">
-              <i className="far fa-copy" />
+              <div className="copy-icon  ">
+                <CopySVG />
+              </div>
             </button>
           </CopyToClipboard>
         </div>
@@ -98,7 +102,9 @@ const ShortURLHolder = ({
         <div className="d-block d-md-none text-muted font-weight-light font-italic">{`atomurl.ga/go/${url}`}</div>
         <div className="input-group input-group-lg mt-3 mb-5">
           <div className="input-group-prepend d-none d-md-block">
-            <span className="input-group-text font-weight-bold" id="inputGroup-sizing-lg">
+            <span
+              className="input-group-text font-weight-bold"
+              id="inputGroup-sizing-lg">
               atomurl.ga/go/
             </span>
           </div>

@@ -81,3 +81,13 @@ body {
     transform: scale(0.9);
   }
 }
+
+.down-arrow {
+  margin: 0 auto;
+  max-width: 2.5rem;
+  color: #17a2b8;
+}
+
+.copy-icon {
+  max-width: 1rem;
+}
