@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -23,6 +24,21 @@ type AtomURLEntry struct {
 	ShortURL       string             `json:"shortURL" bson:"shortURL"`
 	DestinationURL string             `json:"destinationURL" bson:"destinationURL"`
 	CreatedAt      int64              `json:"created_at" bson:"created_at"`
+}
+
+func getEnvValues(envKeyStrings [5]string) map[string]string {
+
+	envValues := make(map[string]string)
+
+	for _, keyString := range envKeyStrings {
+		if os.Getenv(keyString) == "" {
+			log.Fatal("No env value provided for " + keyString + " , check Readme")
+
+		}
+		envValues[keyString] = os.Getenv(keyString)
+	}
+
+	return envValues
 }
 
 func connectToDatabase(mangoDatabaseURL string) *mongo.Client {
@@ -49,14 +65,42 @@ func connectToDatabase(mangoDatabaseURL string) *mongo.Client {
 	return databaseClient
 }
 
-func isInputJSONValid(shortURL string, longURL string) bool {
+func areJSONFieldsMissing(shortURL string, longURL string) error {
 	lengthOfShortURL := len(strings.TrimSpace(shortURL))
 	lengthOfLongURL := len(strings.TrimSpace(longURL))
 
 	if lengthOfShortURL == 0 || lengthOfLongURL == 0 {
-		return false
+		if lengthOfLongURL == 0 {
+			return fmt.Errorf("destination url not provided or field missing")
+		}
+		return fmt.Errorf("short url not provided or field missing")
 	}
-	return true
+	return nil
+}
+
+func isDestinationURLValid(url *url.URL) error {
+	if url.IsAbs() == true {
+		// check if its localhost or other with port
+		if url.Port() == "" {
+			// check if it has http or https
+			if url.Scheme == "http" || url.Scheme == "https" {
+				// check if it has user name or password
+				if url.User == nil {
+					hostname := strings.ToLower(url.Host)
+					atomurlSubdomain := "www.atomurl.ga"
+					atom2Root := "atomurl.ga"
+					if (hostname != atom2Root) && (hostname != atomurlSubdomain) {
+						return nil
+					}
+					return fmt.Errorf("cannot contain atomurl")
+				}
+				return fmt.Errorf("username in url")
+			}
+			return fmt.Errorf("not a valid scheme")
+		}
+		return fmt.Errorf("should not have port")
+	}
+	return fmt.Errorf("doesnt have https or http")
 }
 
 func webAppHandler(ginContext *gin.Context) {
@@ -95,26 +139,45 @@ func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 
 	errInParsingInput := ginContext.ShouldBindJSON(&atomURLEntry)
 	if errInParsingInput != nil {
-		ginContext.JSON(http.StatusNotAcceptable, gin.H{"error": "Wrong JSON structure",
+		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Wrong JSON structure",
 			"error_details": errInParsingInput.Error()})
 		connectContext.Done()
 		return
 	}
 
-	if isInputJSONValid(atomURLEntry.ShortURL, atomURLEntry.DestinationURL) == false {
-		ginContext.JSON(http.StatusNotAcceptable, gin.H{"error": "Empty fields"})
+	missingJSONFields := areJSONFieldsMissing(atomURLEntry.ShortURL, atomURLEntry.DestinationURL)
+	if missingJSONFields != nil {
+		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Empty fields", "error_details": missingJSONFields.Error()})
 		connectContext.Done()
 		return
 	}
 
-	atomURLEntry.ShortURL = strings.TrimSpace(atomURLEntry.ShortURL)
-	atomURLEntry.DestinationURL = strings.TrimSpace(atomURLEntry.DestinationURL)
+	// By now we know that both fields are present hence below :
+	shortURL := strings.TrimSpace(atomURLEntry.ShortURL)
+	destinationURL := strings.TrimSpace(atomURLEntry.DestinationURL)
+
+	decodedDestinationURL, errInDecoding := url.Parse(destinationURL)
+	if errInDecoding != nil {
+		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Error while decoding URL",
+			"error_details": errInDecoding.Error()})
+		connectContext.Done()
+		return
+	}
+
+	errInDestinationURL := isDestinationURLValid(decodedDestinationURL)
+	if errInDestinationURL != nil {
+		ginContext.JSON(http.StatusBadRequest, gin.H{"error": "Destination URL not in correct format",
+			"error_details": errInDestinationURL.Error()})
+		connectContext.Done()
+		return
+	}
+
 	createdAt := time.Now().Unix()
 	atomURLEntry.CreatedAt = createdAt
 
 	atomURLEntryToAdd := bson.M{
-		"shortURL":       atomURLEntry.ShortURL,
-		"destinationURL": atomURLEntry.DestinationURL,
+		"shortURL":       shortURL,
+		"destinationURL": destinationURL,
 		"created_at":     atomURLEntry.CreatedAt,
 	}
 
@@ -141,25 +204,6 @@ func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 
 	ginContext.JSON(http.StatusCreated, gin.H{"data": addedAtomURLEntry})
 	connectContext.Done()
-}
-
-func getEnvValues(envKeyStrings [5]string) map[string]string {
-
-	envValues := make(map[string]string)
-
-	if len(envKeyStrings) == 0 {
-		log.Fatal("No env variables provided, please check readme")
-	}
-
-	for _, keyString := range envKeyStrings {
-		if os.Getenv(keyString) == "" {
-			log.Fatal("No env value provided for " + keyString + " , check Readme")
-
-		}
-		envValues[keyString] = os.Getenv(keyString)
-	}
-
-	return envValues
 }
 
 func main() {
