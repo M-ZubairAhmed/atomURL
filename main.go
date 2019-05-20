@@ -108,6 +108,10 @@ func webAppHandler(ginContext *gin.Context) {
 	ginContext.File("./web/build/index.html")
 }
 
+func notFoundHandler(ginContext *gin.Context) {
+	ginContext.Redirect(http.StatusMovedPermanently, "/404")
+}
+
 func redirectURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 	var atomURLEntry AtomURLEntry
 	shortURLEntered := ginContext.Param("shortURL")
@@ -121,7 +125,7 @@ func redirectURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection)
 
 	errInFinding := dbCollection.FindOne(connectContext, filterOptions).Decode(&atomURLEntry)
 	if errInFinding != nil {
-		ginContext.Redirect(http.StatusNotFound, "https://www.atomurl.ga")
+		notFoundHandler(ginContext)
 		connectContext.Done()
 		return
 	}
@@ -238,7 +242,7 @@ func addURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection) {
 func main() {
 	port := os.Getenv("PORT")
 	if os.Getenv("PORT") == "" {
-		port = "8000"
+		port = "8001"
 	}
 
 	envKeys := [5]string{"DB_HOST", "DB_USER", "DB_PASSWORD", "DB_URL", "DB_NAME"}
@@ -254,7 +258,7 @@ func main() {
 
 	defaultCors := cors.DefaultConfig()
 
-	defaultCors.AllowOrigins = []string{"https://atomurl.ga"}
+	defaultCors.AllowOrigins = []string{"https://atomurl.ga", "http://localhost:3000"}
 	router.Use(cors.New(defaultCors))
 
 	router.Static("/asset-manifest.json", "./web/build/asset-manifest.json")
@@ -272,8 +276,12 @@ func main() {
 		addURLHandler(ginContext, shortURLsCollection)
 	})
 
-	router.NoRoute(func(ginContext *gin.Context) {
+	router.GET("/404", func(ginContext *gin.Context) {
 		webAppHandler(ginContext)
+	})
+
+	router.NoRoute(func(ginContext *gin.Context) {
+		notFoundHandler(ginContext)
 	})
 
 	err := router.Run(":" + port)

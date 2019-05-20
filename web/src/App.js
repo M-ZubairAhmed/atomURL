@@ -1,6 +1,11 @@
 import React from 'react'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
+import { createBrowserHistory } from 'history'
 import logo from './favicon.png'
+
+const PAGE_INIT = 'init'
+const PAGE_NO_FOUND = '404'
+const PAGE_HOME = 'home'
 
 const checkURLValidity = (inputURL) => {
   var validURLExpression = /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi
@@ -21,24 +26,27 @@ const DestinationURLHolder = ({
   handleFormChange,
 }) => {
   return (
-    <div className="input-group mb-3 input-group-lg">
-      <input
-        name="longURL"
-        type="url"
-        className={`form-control ${errors === '' ? '' : 'is-invalid'} ${
-          isCompleted ? 'form-control-plaintext' : ''
-        }`}
-        aria-label="Destination url"
-        aria-describedby="Enter the url which you want to redirect to"
-        autoFocus={true}
-        required={true}
-        placeholder="destination url"
-        title="Enter the url which you want to redirect to"
-        disabled={isWorking || isCompleted}
-        onChange={(e) => handleFormChange(e)}
-        value={url}
-      />
-      <div className="invalid-feedback">{errors}</div>
+    <div className="form-group">
+      <div className="mb-3 input-group-lg">
+        <label for="input_longURL font-weight-lighter">Destination URL</label>
+        <input
+          name="longURL"
+          id="input_longURL"
+          type="url"
+          className={`form-control ${errors === '' ? '' : 'is-invalid'} ${
+            isCompleted ? 'form-control-plaintext' : ''
+          }`}
+          aria-label="Destination url"
+          aria-describedby="Enter the url which you want to redirect to"
+          autoFocus={true}
+          required={true}
+          title="Enter the url which you want to redirect to"
+          disabled={isWorking || isCompleted}
+          onChange={(e) => handleFormChange(e)}
+          value={url}
+        />
+        <div className="invalid-feedback">{errors}</div>
+      </div>
     </div>
   )
 }
@@ -90,7 +98,7 @@ const ShortURLHolder = ({
         <div className="d-block d-md-none text-muted font-weight-light font-italic">{`atomurl.ga/go/${url}`}</div>
         <div className="input-group input-group-lg mt-3 mb-5">
           <div className="input-group-prepend d-none d-md-block">
-            <span className="input-group-text" id="inputGroup-sizing-lg">
+            <span className="input-group-text font-weight-bold" id="inputGroup-sizing-lg">
               atomurl.ga/go/
             </span>
           </div>
@@ -103,7 +111,6 @@ const ShortURLHolder = ({
             aria-describedby="Enter short url which you wish to assign"
             title="Enter short url which you wish to assign"
             required
-            placeholder="short url"
             disabled={isWorking}
             onChange={(e) => handleFormChange(e)}
             value={url}
@@ -166,6 +173,15 @@ export default class App extends React.Component {
     shortURL: '',
     isWorking: false,
     isCompleted: false,
+    page: PAGE_INIT,
+  }
+
+  history = createBrowserHistory()
+
+  redirectToHome(e) {
+    e.preventDefault()
+    this.history.replace('/')
+    this.setState({ page: PAGE_HOME })
   }
 
   async checkAndShortURL(longURL, shortURL) {
@@ -178,8 +194,13 @@ export default class App extends React.Component {
       isWorking: true,
     })
 
+    const ADD_SHORT_URL =
+      process.env.NODE_ENV === 'production'
+        ? '/api/add'
+        : 'http://localhost:8000/api/add'
+
     try {
-      const request = await fetch('/api/add', {
+      const request = await fetch(ADD_SHORT_URL, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -197,9 +218,11 @@ export default class App extends React.Component {
             isCompleted: true,
           })
         } else {
+          // eslint-disable-next-line
           throw { ...response, status }
         }
       } else {
+        // eslint-disable-next-line
         throw 'UNKNOW_ERROR'
       }
     } catch (err) {
@@ -288,6 +311,18 @@ export default class App extends React.Component {
     })
   }
 
+  componentDidMount() {
+    const {
+      location: { pathname },
+    } = this.history
+
+    if (pathname === '/404') {
+      this.setState({ page: PAGE_NO_FOUND })
+    } else {
+      this.setState({ page: PAGE_HOME })
+    }
+  }
+
   render() {
     const {
       state: {
@@ -297,6 +332,7 @@ export default class App extends React.Component {
         longURLErrors,
         shortURL,
         shortURLErrors,
+        page,
       },
       handleFormChange,
       linkBothUrls,
@@ -306,36 +342,56 @@ export default class App extends React.Component {
     return (
       <main>
         <header className="App-header">
-          <img src={logo} alt="AtomURL"/>
+          <img src={logo} alt="AtomURL" />
         </header>
         <div className="container mt-5">
           <div className="row justify-content-center">
             <div className="col col-md-6">
-              <div className="box-card shadow-lg rounded bg-white p-3 p-md-5">
-                <form>
-                  <DestinationURLHolder
-                    url={longURL}
-                    handleFormChange={handleFormChange}
-                    errors={longURLErrors}
-                    isWorking={isWorking}
-                    isCompleted={isCompleted}
-                  />
-                  <DownArrow />
-                  <ShortURLHolder
-                    url={shortURL}
-                    handleFormChange={handleFormChange}
-                    errors={shortURLErrors}
-                    isWorking={isWorking}
-                    isCompleted={isCompleted}
-                  />
-                  <ActionButton
-                    isCompleted={isCompleted}
-                    isWorking={isWorking}
-                    linkBothUrls={linkBothUrls}
-                    startNewForm={startNewForm}
-                  />
-                </form>
-              </div>
+              {page === PAGE_INIT && (
+                <div className="text-center mt-5">
+                  <div className="lds-heart text-center mt-4">
+                    <div />
+                  </div>
+                  <div className="lead">Loading !!</div>
+                </div>
+              )}
+              {page === PAGE_HOME && (
+                <div className="box-card shadow-lg rounded bg-white p-3 p-md-5">
+                  <form>
+                    <DestinationURLHolder
+                      url={longURL}
+                      handleFormChange={handleFormChange}
+                      errors={longURLErrors}
+                      isWorking={isWorking}
+                      isCompleted={isCompleted}
+                    />
+                    <DownArrow />
+                    <ShortURLHolder
+                      url={shortURL}
+                      handleFormChange={handleFormChange}
+                      errors={shortURLErrors}
+                      isWorking={isWorking}
+                      isCompleted={isCompleted}
+                    />
+                    <ActionButton
+                      isCompleted={isCompleted}
+                      isWorking={isWorking}
+                      linkBothUrls={linkBothUrls}
+                      startNewForm={startNewForm}
+                    />
+                  </form>
+                </div>
+              )}
+              {page === PAGE_NO_FOUND && (
+                <div className="text-center mt-5">
+                  <h2>Opps! URL entered doesnt redirect anywhere</h2>
+                  <button
+                    className="btn btn-info btn-lg mt-5"
+                    onClick={(e) => this.redirectToHome(e)}>
+                    Lets create a new short url
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
