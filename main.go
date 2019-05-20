@@ -121,8 +121,7 @@ func redirectURLHandler(ginContext *gin.Context, dbCollection *mongo.Collection)
 
 	errInFinding := dbCollection.FindOne(connectContext, filterOptions).Decode(&atomURLEntry)
 	if errInFinding != nil {
-		ginContext.JSON(http.StatusNotFound, gin.H{"error": "Not found",
-			"error_details": errInFinding.Error()})
+		ginContext.Redirect(http.StatusNotFound, "https://www.atomurl.ga")
 		connectContext.Done()
 		return
 	}
